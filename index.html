@@ -31,7 +31,7 @@ canvas{width:min(98vw,147vh);height:auto;border-radius:14px;box-shadow:0 10px 40
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const W=cv.width,H=cv.height,TAU=Math.PI*2;
 const BX=340,BY=335,BREGMA_Y=BY-60,PX_MM=40;
-const TOTAL=5;
+const TOTAL=6;
 const FONT='system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 
 // ---------- estado ----------
@@ -204,9 +204,8 @@ function thumbsUp(x,y,s){
  for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(3,-4+i*7);ctx.lineTo(17,-4+i*7);ctx.stroke()}
  ctx.restore();
 }
-function drawRatFront(x,y,armK,happy,bob){
+function drawRatFront(x,y,armK,happy,bob,fur='#a3acb6',furD='#7c8793',sad=false){
  ctx.save();ctx.translate(x,y+bob);
- const fur='#a3acb6',furD='#7c8793';
  ctx.strokeStyle='#e7a1ac';ctx.lineWidth=9;ctx.lineCap='round';
  ctx.beginPath();ctx.moveTo(40,100);ctx.bezierCurveTo(120,120,150,60,120,20);ctx.stroke();
  ctx.fillStyle=fur;ell(0,45,64,78);ctx.fill();
@@ -220,7 +219,8 @@ function drawRatFront(x,y,armK,happy,bob){
  ctx.fillStyle=fur;circle(0,-48,52);ctx.fill();
  ctx.fillStyle='#d4d9de';ell(0,-26,28,22);ctx.fill();
  if(happy){ctx.strokeStyle='#111';ctx.lineWidth=4;for(const s of[-1,1]){ctx.beginPath();ctx.arc(s*19,-56,8,1.1*Math.PI,1.9*Math.PI);ctx.stroke()}}
- else for(const s of[-1,1]){ctx.fillStyle='#111';circle(s*19,-58,7.5);ctx.fill();ctx.fillStyle='#fff';circle(s*19+2,-61,2.5);ctx.fill()}
+ else for(const s of[-1,1]){ctx.fillStyle='#111';circle(s*19,-58,7.5);ctx.fill();ctx.fillStyle='#fff';circle(s*19+2,-61,2.5);ctx.fill();
+  if(sad){ctx.strokeStyle='#3a3a3a';ctx.lineWidth=3.5;ctx.beginPath();ctx.moveTo(s*10,-72);ctx.lineTo(s*28,-66);ctx.stroke()}}
  ctx.fillStyle='rgba(240,120,140,.45)';circle(-34,-32,8);ctx.fill();circle(34,-32,8);ctx.fill();
  ctx.fillStyle='#ee8f9f';ell(0,-36,8,6);ctx.fill();
  ctx.strokeStyle='#5a3a40';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(0,-30);ctx.lineTo(0,-24);ctx.arc(-6,-24,6,0,Math.PI*.9);ctx.moveTo(0,-24);ctx.arc(6,-24,6,Math.PI,Math.PI*.1,true);ctx.stroke();
@@ -333,13 +333,69 @@ function drawLab(){
 }
 function panel(x,y,w,h,a=.82){rr(x,y,w,h,14);ctx.fillStyle=`rgba(13,22,31,${a})`;ctx.fill()}
 
+// ---------- comemoração final (todos salvos) ----------
+let ft=0,finaleFx={heal:false,party:false};
+const THANKS=['Parei de tremer!','Tô novinho!','Valeu, doutora!','Que alívio!','Firme e forte!','Obrigado, Lais!'];
+function mixHex(a,b,k){const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);
+ const c=s=>Math.round(lerp(A>>s&255,B>>s&255,k));return`rgb(${c(16)},${c(8)},${c(0)})`}
+function startFinale(){state='finale';ft=0;particles=[];finaleFx={heal:false,party:false}}
+function updateFinale(dt){
+ ft+=dt;
+ if(ft>2.6&&!finaleFx.heal){finaleFx.heal=true;[523,659,784].forEach((f,i)=>snd(f,.5,'sine',.08,0,i*.25))}
+ if(ft>2.6&&ft<5)for(let i=0;i<TOTAL;i++)if(Math.random()<dt*10)particles.push({x:ratX(i)+rnd(-40,40),y:BENCH-rnd(10,120),vx:rnd(-20,20),vy:rnd(-90,-40),life:rnd(.8,1.4),c:'#7dffb2',h:false,spark:true});
+ if(ft>5&&!finaleFx.party){finaleFx.party=true;[523,659,784,1046,784,1046].forEach((f,i)=>snd(f,.22,'triangle',.12,0,i*.13));
+  for(let i=0;i<90;i++)particles.push({x:rnd(150,900),y:rnd(80,200),vx:rnd(-200,200),vy:rnd(-300,-50),life:rnd(1.8,3.2),c:['#ff6b8b','#ffd166','#4fd1c5','#7aa2ff','#ff9f43'][i%5],h:i%3===0})}
+ for(const p of particles){if(!p.spark)p.vy+=380*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
+ particles=particles.filter(p=>p.life>0);
+}
+function ratX(i){return 250+i*122}
+function drawFinale(){
+ drawLab();
+ const heal=clamp((ft-2.6)/2.4),party=ft>5,shake=7*(1-heal);
+ // título
+ panel(150,18,660,112,.82);
+ txt(`TODOS OS ${TOTAL} RATOS SALVOS!`,480,58,32,'#5ee0a0','center','900');
+ const cap=ft<2.6?'Eles tinham Parkinson e tremiam sem parar…':ft<5?'A solução está fazendo efeito… o tremor está passando!':'Curados! Eles agradecem à Dra. Lais Cabral!';
+ txt(cap,480,86,17,'#e6eef5','center','bold');
+ // barra de saúde
+ const hk=ft<2.6?.12:lerp(.12,1,heal);
+ rr(290,100,380,14,7);ctx.fillStyle='#0e1822';ctx.fill();
+ rr(290,100,Math.max(14,380*hk),14,7);ctx.fillStyle=mixHex('#e05a5a','#2fd17f',hk);ctx.fill();
+ txt(hk<1?'Tremor':'Saúde 100%',280,112,12,'#9fb3c6','right','bold');
+ // brilho de cura
+ if(ft>2.6&&ft<5.4){const gx=lerp(100,960,clamp((ft-2.6)/2.2));const g=ctx.createRadialGradient(gx,BENCH-70,10,gx,BENCH-70,160);
+  g.addColorStop(0,'rgba(125,255,178,.35)');g.addColorStop(1,'rgba(125,255,178,0)');ctx.fillStyle=g;ctx.fillRect(gx-160,BENCH-230,320,320)}
+ // Lais
+ drawLais(95,520,.52,true);
+ // ratos
+ const fur=mixHex('#b9bec4','#a3acb6',heal),furD=mixHex('#9aa0a6','#7c8793',heal);
+ for(let i=0;i<TOTAL;i++){
+  const x=ratX(i),jx=shake*Math.sin(ft*41+i*1.7),jy=shake*.6*Math.sin(ft*53+i*2.3);
+  const bob=party?-Math.abs(Math.sin((ft-5)*5-i*.6))*20:0;
+  const armK=party?clamp((ft-5.2-i*.15)/.5):0,s=.55;
+  ctx.save();ctx.translate(x+jx,BENCH-118*s+jy+bob);ctx.scale(s,s);
+  drawRatFront(0,0,armK,party,0,fur,furD,!party&&heal<.6);
+  ctx.restore();
+  if(shake>1.2){ctx.strokeStyle=`rgba(255,255,255,${.5*(shake/7)})`;ctx.lineWidth=2;
+   for(const sd of[-1,1]){ctx.beginPath();ctx.arc(x+sd*48,BENCH-70,10,sd>0?-.6:Math.PI-.6,sd>0?.6:Math.PI+.6);ctx.stroke();
+    ctx.beginPath();ctx.arc(x+sd*48,BENCH-70,17,sd>0?-.6:Math.PI-.6,sd>0?.6:Math.PI+.6);ctx.stroke()}}
+  txt(ratNames[i]||'',x,BENCH+26,14,'#e6eef5','center','bold');
+  if(party&&ft>5.5+i*.2){const by=i%2?168:205,bw=112;ctx.fillStyle='#fff';rr(x-bw/2,by,bw,30,12);ctx.fill();
+   ctx.beginPath();ctx.moveTo(x-6,by+30);ctx.lineTo(x,by+40);ctx.lineTo(x+6,by+30);ctx.fill();
+   txt(THANKS[i%THANKS.length],x,by+20,12.5,'#1f2a35','center','bold')}
+ }
+ for(const p of particles){if(p.h)heart(p.x,p.y,1.5,p.c);else if(p.spark){ctx.fillStyle=hexA('#7dffb2',clamp(p.life));circle(p.x,p.y,2.5);ctx.fill()}else{ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,7,7)}}
+ if(party){panel(250,548,460,40,.8);txt('"Obrigado, Lais! Você nos salvou do Parkinson!"',480,574,17,'#ffd166','center','bold')}
+ if(ft>7.5)button('Continuar ▶',380,596,200,40,()=>{state='end'});
+}
+
 // ---------- fluxo ----------
 function newGame(){level=0;results=[];score=0;ratNames=shuffle(NAMES);startLevel()}
 function startLevel(){
  const r=REGIONS[Math.floor(Math.random()*REGIONS.length)],side=Math.random()<.5?-1:1;
- target={name:r.n,x:BX+side*r.x+rnd(-7,7),y:BY+r.y+rnd(-7,7),r:[18,15,12,10,8][level],side,dv:rnd(2,6.5)};
- tremorAmp=[10,13,16,19,22][level];timeLimit=[10,9,8,7,6][level];fade=level>=2;
- lagK=[7,6,5,4.2,3.5][level];driftAmp=[10,14,18,22,26][level];driftPh=[0,1,2,3].map(()=>rnd(0,TAU));hand={x:mouse.x,y:mouse.y};
+ target={name:r.n,x:BX+side*r.x+rnd(-7,7),y:BY+r.y+rnd(-7,7),r:[18,15,12,10,8,7][level],side,dv:rnd(2,6.5)};
+ tremorAmp=[10,13,16,19,22,24][level];timeLimit=[10,9,8,7,6,6][level];fade=level>=2;
+ lagK=[7,6,5,4.2,3.5,3.2][level];driftAmp=[10,14,18,22,26,28][level];driftPh=[0,1,2,3].map(()=>rnd(0,TAU));hand={x:mouse.x,y:mouse.y};
  solution=SOLUTIONS[Math.floor(Math.random()*SOLUTIONS.length)];
  aimT=0;breath=1;timedOut=false;state='aim';
 }
@@ -358,7 +414,7 @@ function evaluate(){
  rt=0;particles=[];state='result';
  if(ok){[523,659,784,1046].forEach((f,i)=>snd(f,.18,'triangle',.12,0,i*.1))}else snd(180,.35,'sawtooth',.07,-60);
 }
-function next(){level++;if(level>=TOTAL){state='end';snd(392,.2,'triangle',.1);snd(523,.3,'triangle',.1,0,.2)}else startLevel()}
+function next(){level++;if(level>=TOTAL){if(results.every(r=>r!=='miss'))startFinale();else{state='end';snd(392,.2,'triangle',.1);snd(523,.3,'triangle',.1,0,.2)}}else startLevel()}
 
 // ---------- update ----------
 function update(dt){
@@ -369,6 +425,7 @@ function update(dt){
   breath=holding?Math.max(0,breath-dt/2.5):Math.min(1,breath+dt/4);
   if(aimT>=timeLimit){timedOut=true;inject()}
  }else if(state==='inject'){injT+=dt;if(injT>=.9)evaluate()}
+ else if(state==='finale')updateFinale(dt);
  else if(state==='result'){
   rt+=dt;
   if(!res.ok&&!res.dead&&rt>.9){
@@ -393,9 +450,9 @@ function drawIntro(){
  txt('LAIS CABRAL',690,95,54,'#fff','center','900');
  txt('Precisão Neural',690,132,26,'#5ee0a0','center','bold');
  txt('Laboratório de Neurociência · Seattle, WA',690,160,15,'#9fb3c6','center');
- let y=wrap('Você é a Dra. Lais Cabral, cientista em Seattle. Seu trabalho: injetar uma solução química exatamente na região certa do cérebro de cada rato.',470,205,440,24,17,'#e6eef5');
+ let y=wrap('Você é a Dra. Lais Cabral, cientista em Seattle. Os ratos do laboratório têm Parkinson: injete a solução na região certa do cérebro para curá-los!',470,205,440,24,17,'#e6eef5');
  y+=10;
- const rules=['Mova o mouse para mirar e clique para injetar (no celular: toque para mirar e aperte INJETAR).','A mão treme, escorrega e responde com atraso: compense!','Segure ESPAÇO para prender a respiração e diminuir o tremor da mão.','Errou? O rato começa a girar para a direita… e depois de 6 giros, morre.','Acertou? O rato vive e te agradece com um joia!','São 5 ratos, cada um mais difícil. A partir do 3º, a região some e só restam as coordenadas.'];
+ const rules=['Mova o mouse para mirar e clique para injetar (no celular: toque para mirar e aperte INJETAR).','A mão treme, escorrega e responde com atraso: compense!','Segure ESPAÇO para prender a respiração e diminuir o tremor da mão.','Errou? O rato começa a girar para a direita… e depois de 6 giros, morre.','Acertou? O rato vive e te agradece com um joia!','São 6 ratos, cada um mais difícil (do 3º em diante a região some). Salve todos para ver a comemoração!'];
  for(const r of rules){ctx.fillStyle='#5ee0a0';circle(478,y-6,4);ctx.fill();y=wrap(r,492,y,420,22,16,'#cfdbe6')+6}
  button('Começar experimento ▶',540,555,300,56,newGame);
 }
@@ -480,7 +537,7 @@ function drawResult(){
    txt('Obrigado, Lais!',bx+110,by+40,22,'#1f2a35','center','bold');thumbsUp(bx+232,by+42,.75)}
   for(const p of particles){if(p.h)heart(p.x,p.y,1.6,p.c);else{ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,7,7)}}
   txt(res.perfect?'PERFEITO! Bem no centro!':'Na mosca! Acertou a região.',480,62,32,'#5ee0a0','center','900');
-  txt(`${res.name} está vivo e bem · desvio de ${fmt(res.mm)} mm · +${res.pts} pontos`,480,94,16,'#cfdbe6','center');
+  txt(`${res.name} parou de tremer · desvio de ${fmt(res.mm)} mm · +${res.pts} pontos`,480,94,16,'#cfdbe6','center');
   if(rt>1.7)button(level+1>=TOTAL?'Ver resultado final ▶':'Próximo rato ▶',430,565,260,54,next);
  }else{
   drawLab();panel(150,24,660,90,.75);
@@ -519,8 +576,8 @@ function drawEnd(){
  txt('Fim do expediente',670,110,44,'#fff','center','900');
  txt(`Ratos salvos: ${saved}/${TOTAL}`,670,170,28,saved>=3?'#5ee0a0':'#ff6b6b','center','bold');
  txt(`Pontuação: ${score}`,670,210,22,'#ffd166','center','bold');
- ratIcons(582,260);
- const rank=saved===5?'Lenda da neurociência de Seattle!':saved===4?'Mãos de cirurgiã! Quase perfeito.':saved===3?'Bom trabalho, mas o comitê de ética está de olho…':saved===2?'Hora de recalibrar o aparelho estereotáxico…':'Talvez um café do Pike Place Market ajude…';
+ ratIcons(670-(TOTAL-1)*22,260);
+ const rank=saved===TOTAL?'Lenda da neurociência de Seattle! Todos os ratos livres do Parkinson.':saved>=TOTAL-1?'Mãos de cirurgiã! Quase perfeito.':saved===3?'Bom trabalho, mas o comitê de ética está de olho…':saved===2?'Hora de recalibrar o aparelho estereotáxico…':'Talvez um café do Pike Place Market ajude…';
  wrap(rank,670,330,440,28,20,'#e6eef5','center','bold');
  const perf=results.filter(r=>r==='perfect').length;
  if(perf)txt(`Injeções perfeitas: ${perf}`,670,400,16,'#9fb3c6','center');
@@ -531,7 +588,7 @@ function drawEnd(){
 // ---------- loop ----------
 function draw(){
  buttons=[];
- if(state==='intro')drawIntro();else if(state==='aim'||state==='inject')drawAim();else if(state==='result')drawResult();else drawEnd();
+ if(state==='intro')drawIntro();else if(state==='aim'||state==='inject')drawAim();else if(state==='result')drawResult();else if(state==='finale')drawFinale();else drawEnd();
  if(state!=='aim'&&state!=='inject')cv.style.cursor=buttons.some(b=>hit(b,mouse))?'pointer':'default';
 }
 let last=performance.now();
